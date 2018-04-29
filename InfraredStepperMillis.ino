@@ -1,15 +1,20 @@
-/*Infrared Stepper Remote Control
+/*Infrared Stepper Remote Control for the Hobby Buggy
  *This program requires a LED on pin 10, a IR receiver on pin 11,
- *and a stepper on pins 2, 3, 4, and 5. It is designed to allow the
+ *and a steppers on pins 2, 3, 4, 5, 6, 7, 8, and 9. It is designed to allow the
  *accurate remote controle of the stepper with an indacating LED.
  *In order to accomplish more than one task in a single clock time,
  *it uses the millis() command. I have noticed that the initial speed
  *of the stepper decreases as you hold down the button on the remote.
  *This is not a problem, but I'm not exactly sure what to change to minimize it.
+ *In this version I have added support for a second motor
+ *thus completing the code.
  *
- * Version 5.0.0
+ *In this final update, I have configured all of the directions.
+ *The Hobby Buggy can now go forward, backward, left, and right.
  *
- * Completed February 20, 2018 at around 3:20 AM
+ * Version 6.0.1
+ *
+ * Completed April 27, 2018 at around 12:43 PM
  *
  * Author: PowerMechGuy
  */
@@ -40,13 +45,34 @@
         // IN4 on the ULN2003 driver 1
         
         //Creating a instance of an accelstepper
-        AccelStepper stepper(HALFSTEP, pin1, pin3, pin2, pin4);
+        AccelStepper stepper1(HALFSTEP, pin1, pin3, pin2, pin4);
+
+//This will be the declaration of the second stepper
+
+//These variables will act as
+    //the pin representatives
+    int pin5 = 6;
+    int pin6 = 7;
+    int pin7 = 8;
+    int pin8 = 9;
+    //More stepper definitions
+        #define motorPin1 pin5 
+        // IN1 on the ULN2003 driver 1 
+        #define motorPin2 pin6
+        // IN2 on the ULN2003 driver 1 
+        #define motorPin3 pin7 
+        // IN3 on the ULN2003 driver 1 
+        #define motorPin4 pin8 
+        // IN4 on the ULN2003 driver 1
+        
+        //Creating a instance of an accelstepper
+        AccelStepper stepper2(HALFSTEP, pin5, pin7, pin6, pin8);
 
 //This will be the universal distance control variable for the stepper.
-int stepdistance = 1000;
-
+int stepdistance1 = 1000;
+int stepdistance2 = -1000;
 //The class below will be for the timing of the steppers    
-class steppermotor{
+class steppermotora{
     
     //These variables will hold the stepper
     //motor run time
@@ -63,7 +89,7 @@ class steppermotor{
     //This constructor will iniatialize the
     //above variables
     public:
-    steppermotor(long on, int distance)
+    steppermotora(long on, int distance)
     {
         
         //Aligning the initialization of the time variables
@@ -98,7 +124,8 @@ class steppermotor{
         if ((stepperstate = HIGH) && (currentMillis - previousMillis >= onTime))
         {
             //stops stepper
-            stepper.stop();
+            stepper1.stop();
+            
             //resets stepper logic variable
             stepperstate = LOW;
            
@@ -106,6 +133,68 @@ class steppermotor{
     } 
 };
 
+//The class below will be for the timing of the steppers    
+class steppermotorb{
+    
+    //These variables will hold the stepper
+    //motor run time
+    long onTime;
+    
+    //I needed to make this variable
+    //public for reference below
+    public: int stepmove;
+    
+    //These variables will be used for timing
+    int stepperstate;
+    unsigned long previousMillis;
+    
+    //This constructor will iniatialize the
+    //above variables
+    public:
+    steppermotorb(long on, int distance)
+    {
+        
+        //Aligning the initialization of the time variables
+        onTime = on;
+
+        //Setting up time tracking variables
+        stepperstate = LOW;
+        previousMillis = 0;
+        
+        //Here I am placing the distance
+        //value collected from the constructor
+        //into stepmove for future reference
+        stepmove = distance;
+
+        
+    } 
+    
+    //This handy function will keep track of time for the infraredstepper
+    void Update()
+    {
+        //This is the crucial timekeeping variable
+        //of this millis() operation
+        unsigned long currentMillis = millis();
+        
+        //So what this if is evaluating is that
+        //if the variable stepperstate has a HIGH
+        //in it and that is the current time minus
+        //the starting time is greater than or equal
+        //to the previously set onTime, that the stepper
+        //needs to stop. It then resets the stepperstate
+        //variable.
+        if ((stepperstate = HIGH) && (currentMillis - previousMillis >= onTime))
+        {
+            //stops stepper
+            stepper2.stop();
+            
+            //resets stepper logic variable
+            stepperstate = LOW;
+           
+        }
+    } 
+};
+            
 //This class will be for the indacator LED
 class statusled{
     
@@ -170,6 +259,8 @@ class statusled{
     }  
 };
 
+//This variable will keep track of the direction
+byte direction = 0;
 
 //variable for IR receiver pin
 int IRpin = 11;
@@ -188,8 +279,8 @@ decode_results results;
 //First I'll declare a stepper timer with a ontime
 //of 200 milliseconds and a stepmove of stepdistance
 //which was previously defined as 1000
-steppermotor infraredstepper(200, stepdistance);
-
+steppermotora infraredsteppera(200, stepdistance1);
+steppermotorb infraredstepperb(200, stepdistance2);
 //Next I delcare a counter for the LED
 //with a pin number of 10 and a ontime
 //of 200 milliseconds which I found was
@@ -204,15 +295,27 @@ void setup()
         
         //Setting up stepper runtime parameters
         //Not too sure what these are exactly...
-        stepper.setMaxSpeed(1000.0);
-        stepper.setAcceleration(100);
-        stepper.setSpeed(200);
-        stepper.moveTo(stepdistance);
+        stepper1.setMaxSpeed(1500.0);
+        stepper1.setAcceleration(100.0);
+        stepper1.setSpeed(200);
+        //stepper1.moveTo(stepdistance1);
+        //Second Stepper
+        stepper2.setMaxSpeed(1500.0);
+        stepper2.setAcceleration(100.0);
+        stepper2.setSpeed(200);
+        //stepper2.moveTo(stepdistance2);
         
     
     //Here I am starting up the infrared receiver
     irrecv.enableIRIn(); // Start the receiver 
 }
+//This will contain all the continuous direction functions
+
+void forward()
+{
+    
+}
+
 
 //Next the painstakingly constructed loop
 void loop()
@@ -228,16 +331,19 @@ void loop()
     led.update();
     
     //This is for the stepper to keep time
-    infraredstepper.Update();
+    infraredsteppera.Update();
+    infraredstepperb.Update();
     
     //This if says if the stepper logic variable
     //contains a HIGH, then start the stepper
     //according to the parameters setup in the 
     //setup function.
-    if (infraredstepper.stepperstate == HIGH)
+    if (infraredsteppera.stepperstate == HIGH && infraredstepperb.stepperstate == HIGH)
     {
         //the stepper won't move without this command
-        stepper.run();
+        stepper1.run();
+        //Second Stepper
+        stepper2.run();
     }
     
     //This if is checks to to see if
@@ -254,6 +360,13 @@ void loop()
     if (results.value == 16754775)
     {
         //Plus button has been pressed
+        //Setup direction variable
+        direction = 1;
+        
+        //Reset Position of Motors
+        stepper1.setCurrentPosition(0);
+        stepper2.setCurrentPosition(0);
+        
         
         //First we set the indacator logic
         //variable for the LED HIGH to start it
@@ -269,47 +382,213 @@ void loop()
         
         //This sets the stepper logic variable
         //to HIGH
-        infraredstepper.stepperstate = HIGH;
+        infraredsteppera.stepperstate = HIGH;
+        infraredstepperb.stepperstate = HIGH;
         
         //Now we setup the start time variable for the stepper
         //to be relevant to the current time
-        infraredstepper.previousMillis = millis();
+        infraredsteppera.previousMillis = millis();
+        infraredstepperb.previousMillis = millis();
         
         //Finally, we reset the value variable to avoid any weird
         //stuff.
         results.value = 0;
         
+        
     } 
     
-    //This if was put in place to exploit a feature
-    //of IR transceivers. They always seem to emit
-    //a finishing signal with the following value
-    //continuously. I used this to perform the 
-    //following tasks so the the microcontroller
-    //will have something to do when a button is
-    //held down.
-    else if (results.value == 4294967295)
+    if (results.value == 16769565)
     {
-        //Extend LED time by ressetting the start time
-        //variable according to the current time
+        //Ch+ button has been pressed
+        //Setup direction variable
+        direction = 2;
+        
+        //Reset Position of Motors
+        stepper1.setCurrentPosition(0);
+        stepper2.setCurrentPosition(0);
+        
+        //First we set the indacator logic
+        //variable for the LED HIGH to start it
+        led.ledstate = HIGH;
+        
+        //Next we actually turn it on to reflect
+        //the logic of the logic variable
+        digitalWrite(led.pinnum, led.ledstate);
+        
+        //Next we setup the start time variable
+        //To actually be relevant to the current time
         led.oldtime = millis();
         
-        //This resets the stepper start time variable
-        //To a close of just out of reach start time as well
-        infraredstepper.previousMillis = millis();
+        //This sets the stepper logic variable
+        //to HIGH
+        infraredsteppera.stepperstate = HIGH;
+        infraredstepperb.stepperstate = HIGH;
         
-        //This is actually the command that is responsible
-        //for the continuous movement of the stepper. Keeping time
-        //only seems to slow it down. In order to trick the stepper
-        //into continuous movement, you just make it's final destination
-        //farther away. I found that adding 1000 (or stepdistance) to
-        //its final destination was adequate.
-        stepper.moveTo(stepper.currentPosition() + stepdistance);
+        //Now we setup the start time variable for the stepper
+        //to be relevant to the current time
+        infraredsteppera.previousMillis = millis();
+        infraredstepperb.previousMillis = millis();
         
-        //Then we reset the IR results variable once again
-        //to avoid any weird stuff or unwanted repeats.
+        //Finally, we reset the value variable to avoid any weird
+        //stuff.
         results.value = 0;
+        
+        
     }
+    
+    if (results.value == 16756815)
+    {
+        //200+ button has been pressed
+        //Setup direction variable
+        direction = 3;
+        
+        //Reset Position of Motors
+        stepper1.setCurrentPosition(0);
+        stepper2.setCurrentPosition(0);
+        
+        
+        //First we set the indacator logic
+        //variable for the LED HIGH to start it
+        led.ledstate = HIGH;
+        
+        //Next we actually turn it on to reflect
+        //the logic of the logic variable
+        digitalWrite(led.pinnum, led.ledstate);
+        
+        //Next we setup the start time variable
+        //To actually be relevant to the current time
+        led.oldtime = millis();
+        
+        //This sets the stepper logic variable
+        //to HIGH
+        infraredsteppera.stepperstate = HIGH;
+        infraredstepperb.stepperstate = HIGH;
+        
+        //Now we setup the start time variable for the stepper
+        //to be relevant to the current time
+        infraredsteppera.previousMillis = millis();
+        infraredstepperb.previousMillis = millis();
+        
+        //Finally, we reset the value variable to avoid any weird
+        //stuff.
+        results.value = 0;
+        
+        
+    }
+    
+    if (results.value == 16732845)
+    {
+        //9 button has been pressed
+        //Setup direction variable
+        direction = 4;
+        
+        //Reset Position of Motors
+        stepper1.setCurrentPosition(0);
+        stepper2.setCurrentPosition(0);
+        
+        
+        //First we set the indacator logic
+        //variable for the LED HIGH to start it
+        led.ledstate = HIGH;
+        
+        //Next we actually turn it on to reflect
+        //the logic of the logic variable
+        digitalWrite(led.pinnum, led.ledstate);
+        
+        //Next we setup the start time variable
+        //To actually be relevant to the current time
+        led.oldtime = millis();
+        
+        //This sets the stepper logic variable
+        //to HIGH
+        infraredsteppera.stepperstate = HIGH;
+        infraredstepperb.stepperstate = HIGH;
+        
+        //Now we setup the start time variable for the stepper
+        //to be relevant to the current time
+        infraredsteppera.previousMillis = millis();
+        infraredstepperb.previousMillis = millis();
+        
+        //Finally, we reset the value variable to avoid any weird
+        //stuff.
+        results.value = 0;
+        
+        
+    }
+    
+        //This if was put in place to exploit a feature
+        //of IR transceivers. They always seem to emit
+        //a finishing signal with the following value
+        //continuously. I used this to perform the 
+        //following tasks so the the microcontroller
+        //will have something to do when a button is
+        //held down.
+        if (results.value == 4294967295)
+            {
+                //Extend LED time by ressetting the start time
+                //variable according to the current time
+                led.oldtime = millis();
+        
+                //This resets the stepper start time variable
+                //To a close of just out of reach start time as well
+                infraredsteppera.previousMillis = millis();
+                infraredstepperb.previousMillis = millis();
+        
+                //This is actually the command that is responsible
+                //for the continuous movement of the stepper. Keeping time
+                //only seems to slow it down. In order to trick the stepper
+                //into continuous movement, you just make it's final destination
+                //farther away. I found that adding 1000 (or stepdistance) to
+                //its final destination was adequate.
+        
+                //I'll use a switch statement to change direction.
+                
+                switch (direction)
+                {
+                    case 1:
+                    stepper1.moveTo(stepper1.currentPosition() + stepdistance1);
+                    //Second Stepper
+                    stepper2.moveTo(stepper2.currentPosition() + stepdistance2);
+        
+                    //Then we reset the IR results variable once again
+                    //to avoid any weird stuff or unwanted repeats.
+                    results.value = 0;
+                    break;
+                    
+                    case 2:
+                    stepper1.moveTo(stepper1.currentPosition() - stepdistance1);
+                    //Second Stepper
+                    stepper2.moveTo(stepper2.currentPosition() - stepdistance2);
+        
+                    //Then we reset the IR results variable once again
+                    //to avoid any weird stuff or unwanted repeats.
+                    results.value = 0;
+                    break;
+            
+                    case 3:
+                    stepper1.moveTo(stepper1.currentPosition() + stepdistance1);
+                    //Second Stepper
+                    stepper2.moveTo(stepper2.currentPosition() - stepdistance2);
+        
+                    //Then we reset the IR results variable once again
+                    //to avoid any weird stuff or unwanted repeats.
+                    results.value = 0;
+                    break;
+            
+                    case 4:
+                    stepper1.moveTo(stepper1.currentPosition() - stepdistance1);
+                    //Second Stepper
+                    stepper2.moveTo(stepper2.currentPosition() + stepdistance2);
+        
+                    //Then we reset the IR results variable once again
+                    //to avoid any weird stuff or unwanted repeats.
+                    results.value = 0;
+                    break;
+            
+                }
+                
+        }
+    
     
     //This particular if has no use right now.
     //But it may come in handy in the future.
@@ -325,3 +604,4 @@ void loop()
         }
     
 } //The end.
+
